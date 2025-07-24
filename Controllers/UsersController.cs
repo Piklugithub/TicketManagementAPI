@@ -52,13 +52,29 @@ namespace TicketManagementAPI.Controllers
         public async Task<IActionResult> Login([FromBody] LoginModel loginData)
         {
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == loginData.Email && u.PasswordHash == loginData.Password);
+                .FirstOrDefaultAsync(u => u.Email == loginData.Email);
+            string base64Image = user.ProfilePicture != null ? Convert.ToBase64String(user.ProfilePicture) : null;
+            if (user != null && user.IsActive == true && BCrypt.Net.BCrypt.Verify(loginData.Password, user.PasswordHash))
+            {
 
-            if (user == null || user.IsActive == false)
-                return Unauthorized(new { message = "Invalid email or password" });
-
-            return Ok(user);
+                return Ok(new
+                {
+                    user.UserId,
+                    user.FullName,
+                    user.Email,
+                    ProfilePictureBase64 = base64Image
+                });
+            }
+            else
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = "Invalid credentials"
+                });
+            }
         }
+        
  
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromForm] RegisterModel model)
@@ -75,12 +91,12 @@ namespace TicketManagementAPI.Controllers
                 using var memoryStream = new MemoryStream();
                 await model.ProfilePictureFile.CopyToAsync(memoryStream);
                 var pictureBytes = memoryStream.ToArray();
-
+                string hashedPassword = BCrypt.Net.BCrypt.HashPassword(model.Password);
                 var newUser = new User
                 {
                     FullName = model.FullName,
                     Email = model.Email,
-                    PasswordHash = model.Password, // In a real application, hash the password before saving
+                    PasswordHash = hashedPassword, // In a real application, hash the password before saving
                     ProfilePicture = pictureBytes,
                 };
                 _context.Users.Add(newUser);
