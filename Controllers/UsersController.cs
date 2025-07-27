@@ -1,7 +1,12 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using TicketManagementAPI.Models;
 
 namespace TicketManagementAPI.Controllers
@@ -11,7 +16,12 @@ namespace TicketManagementAPI.Controllers
     public class UsersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public UsersController(ApplicationDbContext context) => _context = context;
+        private readonly IConfiguration _config;
+        public UsersController(ApplicationDbContext context, IConfiguration conconfig) {
+
+            _context = context;
+            _config = conconfig;
+        }
 
         // GET: api/users
         [HttpGet]
@@ -51,28 +61,52 @@ namespace TicketManagementAPI.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginModel loginData)
         {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == loginData.Email);
-            string base64Image = user.ProfilePicture != null ? Convert.ToBase64String(user.ProfilePicture) : null;
-            if (user != null && user.IsActive == true && BCrypt.Net.BCrypt.Verify(loginData.Password, user.PasswordHash))
-            {
+            //var user = await _context.Users
+            //    .FirstOrDefaultAsync(u => u.Email == loginData.Email);
+            //string base64Image = user.ProfilePicture != null ? Convert.ToBase64String(user.ProfilePicture) : null;
+            //if (user != null && user.IsActive == true && BCrypt.Net.BCrypt.Verify(loginData.Password, user.PasswordHash))
+            //{
 
-                return Ok(new
+            //    return Ok(new
+            //    {
+            //        user.UserId,
+            //        user.FullName,
+            //        user.Email,
+            //        ProfilePictureBase64 = base64Image
+            //    });
+            //}
+            //else
+            //{
+            //    return Ok(new
+            //    {
+            //        success = false,
+            //        message = "Invalid credentials"
+            //    });
+            //}
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginData.Email);
+
+            if (user == null || !user.IsActive || !BCrypt.Net.BCrypt.Verify(loginData.Password, user.PasswordHash))
+            {
+                return Ok(new { success = false, message = "Invalid credentials" });
+            }
+
+            string base64Image = user.ProfilePicture != null ? Convert.ToBase64String(user.ProfilePicture) : null;
+
+            // ✅ Generate JWT token
+            var token = GenerateJwtToken(user);
+
+            return Ok(new
+            {
+                success = true,
+                token,
+                user = new
                 {
                     user.UserId,
                     user.FullName,
                     user.Email,
                     ProfilePictureBase64 = base64Image
-                });
-            }
-            else
-            {
-                return Ok(new
-                {
-                    success = false,
-                    message = "Invalid credentials"
-                });
-            }
+                }
+            });
         }
         
  
@@ -118,5 +152,29 @@ namespace TicketManagementAPI.Controllers
             return Ok(new { message = "Registration successful" });
         }
 
+        private string GenerateJwtToken(User user)
+        {
+            var jwtSettings = _config.GetSection("Jwt");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var claims = new[]
+            {
+        new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+        new Claim(ClaimTypes.Name, user.FullName),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Role, "User") // Optional: Add role support
+    };
+
+            var token = new JwtSecurityToken(
+                issuer: jwtSettings["Issuer"],
+                audience: jwtSettings["Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["DurationInMinutes"])),
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
     }
 }
