@@ -23,6 +23,7 @@ namespace TicketManagementAPI.Models
         public int CreatedBy { get; set; }
 
         public int? AssignedTo { get; set; }
+        public int? GroupId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
@@ -30,6 +31,11 @@ namespace TicketManagementAPI.Models
 
         // Navigation
         public User CreatedByUser { get; set; }
+        [ForeignKey("AssignedTo")]
+        public GroupMember AssignedMember { get; set; }
+
+        [ForeignKey("GroupId")]
+        public TicketGroup TicketGroup { get; set; }
 
         public ICollection<TicketComment> TicketComments { get; set; }
     }

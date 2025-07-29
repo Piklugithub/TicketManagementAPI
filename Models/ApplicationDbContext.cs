@@ -13,5 +13,7 @@ namespace TicketManagementAPI.Models
         public DbSet<User> Users { get; set; }
         public DbSet<Ticket> Tickets { get; set; }
         public DbSet<TicketComment> TicketComments { get; set; }
+        public DbSet<TicketGroup> TicketGroups { get; set; }
+        public DbSet<GroupMember> GroupMembers { get; set; }
     }
 }

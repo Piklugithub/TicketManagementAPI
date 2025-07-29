@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using TicketManagementAPI.Models;
 
 namespace TicketManagementAPI.Controllers
@@ -75,7 +76,9 @@ namespace TicketManagementAPI.Controllers
                     t.Priority,
                     t.Status,
                     t.CreatedAt,
-                    CreatedBy = t.CreatedByUser.FullName
+                    CreatedBy = t.CreatedByUser.FullName,
+                    AssigmentTo = t.AssignedMember.MemberName,
+                    Group = t.TicketGroup.GroupName
                 })
                 .ToListAsync();
 
