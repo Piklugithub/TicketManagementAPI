@@ -33,7 +33,7 @@ namespace TicketManagementAPI.Controllers
                     { "Active", 0 },
                     { "Resolved", 0 },
                     { "On Hold", 0 },
-                    { "Queued", 0 }
+                    { "Open", 0 }
                 };
 
                 foreach (var item in statusCounts)
@@ -51,7 +51,7 @@ namespace TicketManagementAPI.Controllers
                         active = stats["Active"],
                         resolved = stats["Resolved"],
                         onHold = stats["On Hold"],
-                        queued = stats["Queued"]
+                        open = stats["Open"]
                     }
                 });
             }
@@ -83,6 +83,33 @@ namespace TicketManagementAPI.Controllers
                 .ToListAsync();
 
             return Ok(new { success = true, data = tickets });
+        }
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateTicket([FromBody] Ticket ticket)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            ticket.CreatedAt = DateTime.UtcNow;
+            _context.Tickets.Add(ticket);
+            await _context.SaveChangesAsync();
+
+            return Ok(ticket);
+        }
+        [HttpGet("groups")]
+        public async Task<IActionResult> GetGroups()
+        {
+            var groups = await _context.TicketGroups.ToListAsync();
+            return Ok(groups);
+        }
+
+        [HttpGet("group-members/{groupId}")]
+        public async Task<IActionResult> GetGroupMembers(int groupId)
+        {
+            var members = await _context.GroupMembers
+                .Where(m => m.GroupId == groupId)
+                .ToListAsync();
+            return Ok(members);
         }
     }
 }
