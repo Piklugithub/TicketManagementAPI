@@ -111,5 +111,39 @@ namespace TicketManagementAPI.Controllers
                 .ToListAsync();
             return Ok(members);
         }
+        [HttpGet("my-requests")]
+        public async Task<IActionResult> GetMyTickets([FromQuery] string createdBy, [FromQuery] string? searchTicketId)
+        {
+            if (string.IsNullOrEmpty(createdBy))
+                return BadRequest("User ID is required.");
+
+            var ticketsQuery = _context.Tickets
+                .Where(t => t.CreatedBy == int.Parse(createdBy)); // filter by logged-in user
+
+            if (!string.IsNullOrWhiteSpace(searchTicketId))
+            {
+                if (int.TryParse(searchTicketId, out int ticketId))
+                {
+                    ticketsQuery = ticketsQuery.Where(t => t.TicketId == ticketId); // narrow down by ticketId
+                }
+            }
+
+            var result = await ticketsQuery
+                .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new
+                {
+                    t.TicketId,
+                    t.Title,
+                    t.Status,
+                    t.Priority,
+                    AssigmentTo = t.AssignedMember.MemberName,
+                    Group = t.TicketGroup.GroupName,
+                    t.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(result);
+        }
+
     }
 }
