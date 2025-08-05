@@ -145,5 +145,34 @@ namespace TicketManagementAPI.Controllers
             return Ok(result);
         }
 
+        [HttpGet("getticketById/{id}")]
+        public async Task<IActionResult> GetTicketById(int id)
+        {
+            var ticket = await _context.Tickets.FindAsync(id);
+            if (ticket == null)
+                return NotFound();
+
+            return Ok(ticket);
+        }
+
+        [HttpPut("edit/{id}")]
+        public async Task<IActionResult> UpdateTicket(int id, [FromBody] Ticket updatedTicket)
+        {
+            var ticket = await _context.Tickets.FindAsync(id);
+            if (ticket == null)
+                return NotFound();
+
+            ticket.Title = updatedTicket.Title;
+            ticket.Description = updatedTicket.Description;
+            ticket.Status = updatedTicket.Status;
+            ticket.Priority = updatedTicket.Priority;
+            ticket.AssignedTo = updatedTicket.AssignedTo;
+            ticket.GroupId = updatedTicket.GroupId;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(ticket);
+        }
+
     }
 }
