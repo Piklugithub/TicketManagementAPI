@@ -7,20 +7,12 @@ namespace TicketManagementAPI.Models
     {
         [Key]
         public int CommentId { get; set; }
-
-        [ForeignKey("Ticket")]
         public int TicketId { get; set; }
+        public int UserId { get; set; }
+        public string Message { get; set; }
+        public DateTime CreatedAt { get; set; }
 
-        [Required]
-        public string CommentText { get; set; }
-
-        [ForeignKey("CommentedByUser")]
-        public int CommentedBy { get; set; }
-
-        public DateTime CommentedAt { get; set; } = DateTime.Now;
-
-        // Navigation
-        public Ticket? Ticket { get; set; }
-        public User? CommentedByUser { get; set; }
+        public Ticket Ticket { get; set; }
+        public User User { get; set; }
     }
 }
