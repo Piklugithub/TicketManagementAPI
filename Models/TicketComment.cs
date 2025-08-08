@@ -14,5 +14,6 @@ namespace TicketManagementAPI.Models
 
         public Ticket Ticket { get; set; }
         public User User { get; set; }
+        public virtual ICollection<CommentAttachment> Attachments { get; set; }
     }
 }

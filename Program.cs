@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System;
@@ -85,7 +86,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+var attachmentPath = builder.Configuration["AttachmentSettings:BasePath"];
 
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(attachmentPath),
+    RequestPath = "/CommentAttachment"
+});
 // Configure the HTTP request pipeline.
 app.UseRouting();
 
