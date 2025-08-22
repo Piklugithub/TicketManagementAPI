@@ -36,7 +36,7 @@ steps:
     inputs:
       command: 'build'
       projects: '**/*.csproj'
-      arguments: '--configuration $(buildConfiguration) /p:Version=$(Build.BuildNumber)'
+      arguments: '--configuration $(buildConfiguration)'
 
   # Step 5: Run Tests
   - task: DotNetCoreCLI@2
@@ -53,7 +53,7 @@ steps:
     inputs:
       command: 'publish'
       publishWebProjects: true
-      arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory) /p:Version=$(Build.BuildNumber)'
+      arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
       zipAfterPublish: true
 
   # Step 7: Publish Artifact
