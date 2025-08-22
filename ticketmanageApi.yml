@@ -1,66 +1,72 @@
-# azure-pipelines.yml
 trigger:
-  branches:
-    include:
-      - main   # adjust as per your branch
+- main
 
 pool:
-  name: 'Default'
+  vmImage: 'windows-latest'
 
 variables:
   buildConfiguration: 'Release'
-  major: 1
-  minor: 0
 
-name: '$(major).$(minor).$(Rev:.r)'   # Version format: 1.0.1, 1.0.2, etc.
+stages:
+- stage: Build
+  displayName: "Build & Publish"
+  jobs:
+  - job: BuildJob
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
 
-steps:
+    - task: DotNetCoreCLI@2
+      displayName: "Restore"
+      inputs:
+        command: restore
+        projects: '**/*.csproj'
 
-  # Step 2: Install .NET SDK
-  - task: UseDotNet@2
-    displayName: 'Install .NET SDK'
-    inputs:
-      packageType: 'sdk'
-      version: '8.x'   # Change to your .NET version
+    - task: DotNetCoreCLI@2
+      displayName: "Build"
+      inputs:
+        command: build
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration)'
 
-  # Step 3: Restore dependencies
-  - task: DotNetCoreCLI@2
-    displayName: 'Restore dependencies'
-    inputs:
-      command: 'restore'
-      projects: '**/*.csproj'
+    - task: DotNetCoreCLI@2
+      displayName: "Publish"
+      inputs:
+        command: publish
+        publishWebProjects: true
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/publish'
+        zipAfterPublish: true
 
-  # Step 4: Build with version
-  - task: DotNetCoreCLI@2
-    displayName: 'Build solution with version'
-    inputs:
-      command: 'build'
-      projects: '**/*.csproj'
-      arguments: '--configuration $(buildConfiguration)'
+    - publish: $(Build.ArtifactStagingDirectory)/publish
+      artifact: drop
 
-  # Step 5: Run Tests
-  - task: DotNetCoreCLI@2
-    displayName: 'Run tests'
-    inputs:
-      command: 'test'
-      projects: '**/*Tests/*.csproj'
-      arguments: '--configuration $(buildConfiguration) --no-build --verbosity normal'
-    continueOnError: true
+- stage: Deploy
+  displayName: "Deploy to VM"
+  jobs:
+  - deployment: DeployWeb
+    environment: 'MyVMEnv'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # Copy build output to VM
+          - task: WindowsMachineFileCopy@2
+            displayName: "Copy files to VM"
+            inputs:
+              SourcePath: '$(Pipeline.Workspace)/drop'
+              MachineNames: '52.140.96.38'
+              AdminUserName: 'AppVM\svc_azuredevops'   # service account username
+              AdminPassword: 'Azure@99'   # stored in pipeline secrets
+              TargetPath: 'C:\inetpub\wwwroot\MyApp'
 
-  # Step 6: Publish API
-  - task: DotNetCoreCLI@2
-    displayName: 'Publish API'
-    inputs:
-      command: 'publish'
-      publishWebProjects: true
-      arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
-      zipAfterPublish: true
-
-  # Step 7: Publish Artifact
-  - task: PublishBuildArtifacts@1
-    displayName: 'Publish Artifact: drop'
-    inputs:
-      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      ArtifactName: 'drop'
-      publishLocation: 'Container'
-
+          # (Optional) Restart IIS after deploy
+          - task: IISWebAppManagementOnMachineGroup@0
+            displayName: "Restart IIS Site"
+            inputs:
+              IISDeploymentType: 'IISWebsite'
+              ActionIISWebsite: 'RestartWebsite'
+              StartStopWebsiteName: 'MyApp'
+              ResourceGroupName: ''
