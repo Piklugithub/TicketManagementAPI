@@ -40,8 +40,11 @@ stages:
         arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/publish'
         zipAfterPublish: false
 
-    - publish: $(Build.ArtifactStagingDirectory)/publish
-      artifact: drop
+    - task: PublishPipelineArtifact@1
+      displayName: "Publish Build Artifact"
+      inputs:
+          targetPath: '$(Build.ArtifactStagingDirectory)/publish'
+          artifact: 'drop'
 
 - stage: Deploy
   displayName: "Deploy to IIS"
