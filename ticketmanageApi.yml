@@ -58,7 +58,7 @@ stages:
             inputs:
               SourcePath: '$(Pipeline.Workspace)/drop'
               MachineNames: '52.140.96.38'
-              AdminUserName: 'AppVM\svc_azuredevops'   # service account username
+              AdminUserName: 'svc_azuredevops'   # service account username
               AdminPassword: 'Azure@99'   # stored in pipeline secrets
               TargetPath: 'C:\inetpub\wwwroot\MyApp'
 
