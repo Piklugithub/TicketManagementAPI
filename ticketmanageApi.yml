@@ -61,7 +61,7 @@ stages:
         path: $(Pipeline.Workspace)/drop
 
     - powershell: |
-        $source = "$(Pipeline.Workspace)\drop\publish"
+        $source = "$(Pipeline.Workspace)\drop"
         $destination = "C:\inetpub\wwwroot\MyApp"
 
         Write-Host "Copying from $source to $destination ..."
