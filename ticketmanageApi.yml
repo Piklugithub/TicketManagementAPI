@@ -31,13 +31,6 @@ stages:
         command: build
         projects: '**/*.csproj'
         arguments: '--configuration $(buildConfiguration)'
-        
-    - powershell: |
-          Write-Host "Pipeline.Workspace = $(Pipeline.Workspace)"
-          Write-Host "System.ArtifactsDirectory = $(System.ArtifactsDirectory)"
-          Get-ChildItem -Recurse "$(Pipeline.Workspace)"
-          displayName: "Debug artifact path"
-
     - task: DotNetCoreCLI@2
       displayName: "Publish"
       inputs:
