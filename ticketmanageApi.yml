@@ -3,8 +3,7 @@ trigger:
 
 pool:
   name: 'Default'
-  demands:
-        - Agent.Name -equals MyAgentIIS
+
 variables:
   buildConfiguration: 'Release'
 
@@ -32,6 +31,7 @@ stages:
         command: build
         projects: '**/*.csproj'
         arguments: '--configuration $(buildConfiguration)'
+
     - task: DotNetCoreCLI@2
       displayName: "Publish"
       inputs:
@@ -44,40 +44,28 @@ stages:
       artifact: drop
 
 - stage: Deploy
-  displayName: "Deploy Stage"
+  displayName: "Deploy to IIS"
   dependsOn: Build
   jobs:
   - job: DeployJob
-    displayName: "Deploy to IIS VM"
     pool:
-      name: Default          # Your self-hosted pool name
-      demands:
-        - Agent.Name -equals MyAgentIIS   # Replace with your IIS VM agent name
+      name: Default   # ensure this is the agent on your VM
     steps:
-    - task: DownloadBuildArtifacts@0
-      displayName: "Download Build Artifacts"
+    - task: DownloadPipelineArtifact@2
+      displayName: "Download Build Artifact"
       inputs:
-        buildType: 'current'
-        downloadType: 'single'
-        artifactName: 'drop'
-        downloadPath: '$(System.ArtifactsDirectory)'
+        artifact: drop
+        path: $(Pipeline.Workspace)
 
-    - task: PowerShell@2
-      displayName: "Deploy to IIS Folder"
-      inputs:
-        targetType: 'inline'
-        script: |
-          $source = "$(Pipeline.Workspace)\drop\publish"
-          $destination = "C:\inetpub\wwwroot\MyApp"
+    - powershell: |
+        $source = "$(Pipeline.Workspace)\drop\publish"
+        $destination = "C:\inetpub\wwwroot\MyApp"
 
-          Write-Host "Deploying from $source to $destination..."
-
-          if (Test-Path $destination) {
-            Remove-Item "$destination\*" -Recurse -Force
-          } else {
-            New-Item -ItemType Directory -Path $destination -Force
-          }
-
-          Copy-Item "$source\*" $destination -Recurse -Force
-
-          Write-Host "✅ Deployment completed!"
+        Write-Host "Copying from $source to $destination ..."
+        if (Test-Path $destination) {
+            Copy-Item "$source\*" $destination -Recurse -Force
+        } else {
+            New-Item -ItemType Directory -Force -Path $destination
+            Copy-Item "$source\*" $destination -Recurse -Force
+        }
+      displayName: "Deploy to IIS"
