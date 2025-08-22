@@ -58,7 +58,7 @@ stages:
       displayName: "Download Build Artifact"
       inputs:
         artifact: drop
-        path: $(Pipeline.Workspace)
+        path: $(Pipeline.Workspace)/drop
 
     - powershell: |
         $source = "$(Pipeline.Workspace)\drop\publish"
