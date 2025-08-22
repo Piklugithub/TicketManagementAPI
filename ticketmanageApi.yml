@@ -39,7 +39,7 @@ stages:
         arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/publish'
         zipAfterPublish: false
 
-    - publish: $(Build.ArtifactStagingDirectory)/publish
+    - publish: $(Build.ArtifactStagingDirectory)/drop
       artifact: drop
 
 - stage: Deploy
