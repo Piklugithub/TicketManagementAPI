@@ -31,6 +31,12 @@ stages:
         command: build
         projects: '**/*.csproj'
         arguments: '--configuration $(buildConfiguration)'
+        
+    - powershell: |
+          Write-Host "Pipeline.Workspace = $(Pipeline.Workspace)"
+          Write-Host "System.ArtifactsDirectory = $(System.ArtifactsDirectory)"
+          Get-ChildItem -Recurse "$(Pipeline.Workspace)"
+          displayName: "Debug artifact path"
 
     - task: DotNetCoreCLI@2
       displayName: "Publish"
@@ -67,7 +73,7 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          $source = "$(System.ArtifactsDirectory)\drop"
+          $source = "$(Pipeline.Workspace)\drop"
           $destination = "C:\inetpub\wwwroot\MyApp"
 
           Write-Host "Deploying from $source to $destination..."
