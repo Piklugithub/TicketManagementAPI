@@ -3,7 +3,8 @@ trigger:
 
 pool:
   name: 'Default'
-
+  demands:
+        - Agent.Name -equals MyAgentIIS
 variables:
   buildConfiguration: 'Release'
 
