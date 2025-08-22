@@ -44,29 +44,40 @@ stages:
       artifact: drop
 
 - stage: Deploy
-  displayName: "Deploy to VM"
+  displayName: "Deploy Stage"
+  dependsOn: Build
   jobs:
-  - deployment: DeployWeb
-    environment: 'MyVMEnv'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          # Copy build output to VM
-          - task: WindowsMachineFileCopy@2
-            displayName: "Copy files to VM"
-            inputs:
-              SourcePath: '$(Pipeline.Workspace)/drop'
-              MachineNames: '52.140.96.38'
-              AdminUserName: 'svc_azuredevops'   # service account username
-              AdminPassword: 'Azure@99'   # stored in pipeline secrets
-              TargetPath: 'C:\inetpub\wwwroot\MyApp'
+  - job: DeployJob
+    displayName: "Deploy to IIS VM"
+    pool:
+      name: Default          # Your self-hosted pool name
+      demands:
+        - Agent.Name -equals MyAgentIIS   # Replace with your IIS VM agent name
+    steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: "Download Build Artifacts"
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'drop'
+        downloadPath: '$(System.ArtifactsDirectory)'
 
-          # (Optional) Restart IIS after deploy
-          - task: IISWebAppManagementOnMachineGroup@0
-            displayName: "Restart IIS Site"
-            inputs:
-              IISDeploymentType: 'IISWebsite'
-              ActionIISWebsite: 'RestartWebsite'
-              StartStopWebsiteName: 'MyApp'
-              ResourceGroupName: ''
+    - task: PowerShell@2
+      displayName: "Deploy to IIS Folder"
+      inputs:
+        targetType: 'inline'
+        script: |
+          $source = "$(System.ArtifactsDirectory)\drop"
+          $destination = "C:\inetpub\wwwroot\MyApp"
+
+          Write-Host "Deploying from $source to $destination..."
+
+          if (Test-Path $destination) {
+            Remove-Item "$destination\*" -Recurse -Force
+          } else {
+            New-Item -ItemType Directory -Path $destination -Force
+          }
+
+          Copy-Item "$source\*" $destination -Recurse -Force
+
+          Write-Host "✅ Deployment completed!"
