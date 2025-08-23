@@ -65,7 +65,7 @@ stages:
 
     # Deploy to single VM using PowerShell Remoting
     - powershell: |
-        $vm = "4.213.137.115"  # replace with your target VM name
+        $vm = "Vm2"  # replace with your target VM name
         $source = "$(Pipeline.Workspace)\drop\s"
 
         $username = "$(DeployUser)"      # secure variable in DevOps
