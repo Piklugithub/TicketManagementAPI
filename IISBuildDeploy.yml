@@ -8,8 +8,8 @@ pool:
 variables:
   buildConfiguration: 'Release'
   appVmIp: '10.0.1.5'       # App VM private IP
-  appVmUser: $(DeployUser)  # App VM service/admin username
-  appVmPassword: $(DeployPassword)  # Secure Pipeline variable
+  appVmUser: 'PikluApp'  # App VM service/admin username
+  appVmPassword: 'PritamSamanta@1999'  # Secure Pipeline variable
 
 stages:
 
