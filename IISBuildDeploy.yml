@@ -1,0 +1,87 @@
+trigger:
+- main
+
+pool:
+  name: 'Default'   # Hub server agent
+
+variables:
+  buildConfiguration: 'Release'
+
+stages:
+- stage: Build
+  displayName: "Build & Publish"
+  jobs:
+  - job: BuildJob
+    displayName: "Build .NET App"
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+
+    - task: DotNetCoreCLI@2
+      displayName: "Restore"
+      inputs:
+        command: restore
+        projects: '**/*.csproj'
+
+    - task: DotNetCoreCLI@2
+      displayName: "Build"
+      inputs:
+        command: build
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration)'
+
+    - task: DotNetCoreCLI@2
+      displayName: "Publish"
+      inputs:
+        command: publish
+        publishWebProjects: true
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/publish'
+        zipAfterPublish: false
+
+    # Publish artifact
+    - task: PublishPipelineArtifact@1
+      displayName: "Publish Build Artifact"
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/publish'
+        artifact: 'drop'
+
+- stage: Deploy
+  displayName: "Deploy to App Server"
+  dependsOn: Build
+  jobs:
+  - job: DeployJob
+    displayName: "Deploy via WinRM"
+    pool:
+      name: 'Default'  # Hub server agent
+    steps:
+    # Download artifact
+    - task: DownloadPipelineArtifact@2
+      displayName: "Download Build Artifact"
+      inputs:
+        artifact: drop
+        path: $(Pipeline.Workspace)/drop
+
+    # Deploy to single VM using PowerShell Remoting
+    - powershell: |
+        $vm = "4.213.137.115"  # replace with your target VM name
+        $source = "$(Pipeline.Workspace)\drop\s"
+
+        $username = "$(DeployUser)"      # secure variable in DevOps
+        $password = ConvertTo-SecureString "$(DeployPassword)" -AsPlainText -Force
+        $cred = New-Object System.Management.Automation.PSCredential ($username, $password)
+
+        Write-Host "Deploying to $vm ..."
+        $session = New-PSSession -ComputerName $vm -Credential $cred
+
+        # Copy build files to IIS folder
+        Copy-Item "$source\*" "C:\inetpub\wwwroot\MyApp" -ToSession $session -Recurse -Force
+
+        # Optional: restart IIS to load new content
+        Invoke-Command -Session $session -ScriptBlock { iisreset /noforce }
+
+        Remove-PSSession $session
+
+        Write-Host "Deployment completed successfully!"
+      displayName: "Deploy via WinRM"
