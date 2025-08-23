@@ -1,23 +1,31 @@
+# azure-pipelines.yml
 trigger:
 - main
 
 pool:
-  name: 'Default'   # Hub server agent
+  name: 'Default'  # your Hub VM agent pool
 
 variables:
   buildConfiguration: 'Release'
+  appVmIp: '10.0.1.5'       # App VM private IP
+  appVmUser: $(DeployUser)  # App VM service/admin username
+  appVmPassword: $(DeployPassword)  # Secure Pipeline variable
 
 stages:
+
+# ---------------------------
+# Stage 1: Build & Publish
+# ---------------------------
 - stage: Build
   displayName: "Build & Publish"
   jobs:
   - job: BuildJob
-    displayName: "Build .NET App"
     steps:
     - task: UseDotNet@2
       inputs:
         packageType: 'sdk'
         version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
 
     - task: DotNetCoreCLI@2
       displayName: "Restore"
@@ -40,48 +48,44 @@ stages:
         arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/publish'
         zipAfterPublish: false
 
-    # Publish artifact
-    - task: PublishPipelineArtifact@1
-      displayName: "Publish Build Artifact"
-      inputs:
-        targetPath: '$(Build.ArtifactStagingDirectory)/publish'
-        artifact: 'drop'
+    - publish: $(Build.ArtifactStagingDirectory)/publish
+      artifact: drop
 
+# ---------------------------
+# Stage 2: Deploy
+# ---------------------------
 - stage: Deploy
-  displayName: "Deploy to App Server"
+  displayName: "Deploy to App VM"
   dependsOn: Build
   jobs:
   - job: DeployJob
-    displayName: "Deploy via WinRM"
-    pool:
-      name: 'Default'  # Hub server agent
     steps:
-    # Download artifact
     - task: DownloadPipelineArtifact@2
       displayName: "Download Build Artifact"
       inputs:
         artifact: drop
         path: $(Pipeline.Workspace)/drop
 
-    # Deploy to single VM using PowerShell Remoting
     - powershell: |
-        $vm = "10.0.1.5"  # replace with your target VM name
-        $source = "$(Pipeline.Workspace)\drop\s"
+        # Convert password to secure string
+        $secPassword = ConvertTo-SecureString "$(appVmPassword)" -AsPlainText -Force
 
-        $username = "$(DeployUser)"      # secure variable in DevOps
-        $password = ConvertTo-SecureString "$(DeployPassword)" -AsPlainText -Force
-        $cred = New-Object System.Management.Automation.PSCredential ($username, $password)
+        # Create credential object
+        $cred = New-Object System.Management.Automation.PSCredential ("$(appVmUser)", $secPassword)
 
-        Write-Host "Deploying to $vm ..."
-        $session = New-PSSession -ComputerName $vm -Credential $cred
+        # Path variables
+        $source = "$(Pipeline.Workspace)\drop"
+        $destination = "C:\inetpub\wwwroot\MyApp"
 
-        # Copy build files to IIS folder
-        Copy-Item "$source\*" "C:\inetpub\wwwroot\MyApp" -ToSession $session -Recurse -Force
+        # Deploy via WinRM HTTP
+        Invoke-Command -ComputerName $(appVmIp) -Credential $cred -Authentication Default -Port 5985 -ScriptBlock {
+            param($src, $dest)
+            # Ensure destination folder exists
+            if (!(Test-Path $dest)) {
+                New-Item -ItemType Directory -Path $dest -Force | Out-Null
+            }
+            # Copy files
+            Copy-Item "$src\*" $dest -Recurse -Force
+        } -ArgumentList $source, $destination
 
-        # Optional: restart IIS to load new content
-        Invoke-Command -Session $session -ScriptBlock { iisreset /noforce }
-
-        Remove-PSSession $session
-
-        Write-Host "Deployment completed successfully!"
-      displayName: "Deploy via WinRM"
+      displayName: "Deploy Build to App VM"
